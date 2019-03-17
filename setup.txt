@@ -1,0 +1,7 @@
+use python 3.6, cuda10
+install packages from requirements.txt with conda/pip
+conda install cupy
+pip install torchnet python-resources
+run a local visdom server using "python -m visdom.server"
+run the demo notebook to make sure the dependencies are installed correctly
+if you get a 500 error when running the demo notebook try downgrading tornado to 5.1.1

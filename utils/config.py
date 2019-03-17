@@ -7,7 +7,8 @@ from pprint import pprint
 
 class Config:
     # data
-    voc_data_dir = '/home/cy/.chainer/dataset/pfnet/chainercv/voc/VOCdevkit/VOC2007/'
+    train_dir = 'train'
+    test_dir = 'test'
     min_size = 600  # image resize
     max_size = 1000 # image resize
     num_workers = 8
@@ -54,7 +55,7 @@ class Config:
         state_dict = self._state_dict()
         for k, v in kwargs.items():
             if k not in state_dict:
-                raise ValueError('UnKnown Option: "--%s"' % k)
+                raise ValueError('Unknown Option: "--%s"' % k)
             setattr(self, k, v)
 
         print('======user config========')

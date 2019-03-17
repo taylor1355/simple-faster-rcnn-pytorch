@@ -16,12 +16,11 @@ from utils import array_tool as at
 from utils.vis_tool import visdom_bbox
 from utils.eval_tool import eval_detection_voc
 
-# fix for ulimit
+# fix for ulimit (commented out because resource is unix-only package)
 # https://github.com/pytorch/pytorch/issues/973#issuecomment-346405667
-import resource
-
-rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
+# import resource
+# rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+# resource.setrlimit(resource.RLIMIT_NOFILE, (20480, rlimit[1]))
 
 matplotlib.use('agg')
 
@@ -29,20 +28,21 @@ matplotlib.use('agg')
 def eval(dataloader, faster_rcnn, test_num=10000):
     pred_bboxes, pred_labels, pred_scores = list(), list(), list()
     gt_bboxes, gt_labels, gt_difficults = list(), list(), list()
-    for ii, (imgs, sizes, gt_bboxes_, gt_labels_, gt_difficults_) in tqdm(enumerate(dataloader)):
+    #for iter, (imgs, sizes, gt_bboxes_, gt_labels_, gt_difficults_) in tqdm(enumerate(dataloader)):
+    for iter, (imgs, sizes, gt_bboxes_, gt_labels_) in tqdm(enumerate(dataloader)):
         sizes = [sizes[0][0].item(), sizes[1][0].item()]
         pred_bboxes_, pred_labels_, pred_scores_ = faster_rcnn.predict(imgs, [sizes])
         gt_bboxes += list(gt_bboxes_.numpy())
         gt_labels += list(gt_labels_.numpy())
-        gt_difficults += list(gt_difficults_.numpy())
+        #gt_difficults += list(gt_difficults_.numpy())
         pred_bboxes += pred_bboxes_
         pred_labels += pred_labels_
         pred_scores += pred_scores_
-        if ii == test_num: break
+        if iter == test_num: break
 
     result = eval_detection_voc(
         pred_bboxes, pred_labels, pred_scores,
-        gt_bboxes, gt_labels, gt_difficults,
+        gt_bboxes, gt_labels, #gt_difficults,
         use_07_metric=True)
     return result
 
@@ -75,23 +75,24 @@ def train(**kwargs):
     lr_ = opt.lr
     for epoch in range(opt.epoch):
         trainer.reset_meters()
-        for ii, (img, bbox_, label_, scale) in tqdm(enumerate(dataloader)):
+        for iter, (img, bbox_, label_, scale) in tqdm(enumerate(dataloader)):
             scale = at.scalar(scale)
             img, bbox, label = img.cuda().float(), bbox_.cuda(), label_.cuda()
             trainer.train_step(img, bbox, label, scale)
 
-            if (ii + 1) % opt.plot_every == 0:
+            if (iter + 1) % opt.plot_every == 0:
                 if os.path.exists(opt.debug_file):
                     ipdb.set_trace()
 
                 # plot loss
                 trainer.vis.plot_many(trainer.get_meter_data())
 
-                # plot groud truth bboxes
+                # plot ground truth bboxes
                 ori_img_ = inverse_normalize(at.tonumpy(img[0]))
                 gt_img = visdom_bbox(ori_img_,
                                      at.tonumpy(bbox_[0]),
-                                     at.tonumpy(label_[0]))
+                                     at.tonumpy(label_[0]),
+                                     label_names=dataset.db.label_names)
                 trainer.vis.img('gt_img', gt_img)
 
                 # plot predicti bboxes
@@ -99,13 +100,18 @@ def train(**kwargs):
                 pred_img = visdom_bbox(ori_img_,
                                        at.tonumpy(_bboxes[0]),
                                        at.tonumpy(_labels[0]).reshape(-1),
-                                       at.tonumpy(_scores[0]))
+                                       at.tonumpy(_scores[0]),
+                                       label_names=dataset.db.label_names)
                 trainer.vis.img('pred_img', pred_img)
 
                 # rpn confusion matrix(meter)
                 trainer.vis.text(str(trainer.rpn_cm.value().tolist()), win='rpn_cm')
                 # roi confusion matrix
                 trainer.vis.img('roi_cm', at.totensor(trainer.roi_cm.conf, False).float())
+
+            if iter > 20:
+                break
+
         eval_result = eval(test_dataloader, faster_rcnn, test_num=opt.test_num)
         trainer.vis.plot('test_map', eval_result['map'])
         lr_ = trainer.faster_rcnn.optimizer.param_groups[0]['lr']
@@ -122,7 +128,7 @@ def train(**kwargs):
             trainer.faster_rcnn.scale_lr(opt.lr_decay)
             lr_ = lr_ * opt.lr_decay
 
-        if epoch == 13: 
+        if epoch == 13:
             break
 
 

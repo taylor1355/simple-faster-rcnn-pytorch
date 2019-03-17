@@ -60,7 +60,7 @@ def vis_image(img, ax=None):
     return ax
 
 
-def vis_bbox(img, bbox, label=None, score=None, ax=None):
+def vis_bbox(img, bbox, label=None, score=None, ax=None, label_names=None):
     """Visualize bounding boxes inside image.
 
     Args:
@@ -87,8 +87,9 @@ def vis_bbox(img, bbox, label=None, score=None, ax=None):
         Returns the Axes object with the plot for further tweaking.
 
     """
+    if label_names is None:
+        label_names = list(VOC_BBOX_LABEL_NAMES) + ['bg']
 
-    label_names = list(VOC_BBOX_LABEL_NAMES) + ['bg']
     # add for index `-1`
     if label is not None and not len(bbox) == len(label):
         raise ValueError('The length of label must be same as that of bbox')
@@ -130,7 +131,7 @@ def vis_bbox(img, bbox, label=None, score=None, ax=None):
 
 def fig2data(fig):
     """
-    brief Convert a Matplotlib figure to a 4D numpy array with RGBA 
+    brief Convert a Matplotlib figure to a 4D numpy array with RGBA
     channels and return it
 
     @param fig: a matplotlib figure
@@ -169,7 +170,7 @@ def visdom_bbox(*args, **kwargs):
 class Visualizer(object):
     """
     wrapper for visdom
-    you can still access naive visdom function by 
+    you can still access naive visdom function by
     self.line, self.scater,self._send,etc.
     due to the implementation of `__getattr__`
     """
